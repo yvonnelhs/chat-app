@@ -19,7 +19,10 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-var call = client.chatStream();
+
+var metadata = new grpc.Metadata();
+metadata.add('user', 'userid2');
+var call = client.chatStream(metadata);
 
 call.on("data", (data) => {
   console.log(`${data.sender} ==> ${data.content}`);
@@ -31,7 +34,6 @@ rl.on("line", function (line) {
     rl.close();
   } else {
     call.write({
-      sender: "userid2",
       recipient: "userid1",
       content: line,
       timestamp: new Date().toISOString(),

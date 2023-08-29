@@ -20,32 +20,40 @@ async function main() {
   const STREAM_LIST = new Map();
 
   const chatStream = async (call) => {
-    console.log("test")
+    const client = call.metadata.get("user")[0];
+    console.log("user: " + client);
+    STREAM_LIST.set(client, call);
 
-    call.on('data', async (data) => {
-      console.log(data)
-      const { sender, recipient, content } = data;
-      console.log(`Received message from ${sender}: ${data.content}`)
-      
+    call.on("data", async (data) => {
+      console.log(data);
+      const { recipient, content, timestamp } = data;
+      const sender = call.metadata.get("user")[0];
+
       // Save message to DB
       try {
-        await messagesCollection.insertOne(data);
-        console.log("Message saved:", content);
+        message = {
+          ...data,
+          sender,
+        };
+        await messagesCollection.insertOne(message);
+        console.log("Message saved:", message);
       } catch (error) {
         console.error("Error saving message:", error);
       }
 
+      console.log(STREAM_LIST.keys());
       if (STREAM_LIST.has(recipient)) {
+        outgoingMessage = {
+          sender,
+          content,
+          timestamp,
+        };
         const recipientStream = STREAM_LIST.get(recipient);
-        recipientStream.write(data);
+        recipientStream.write(outgoingMessage);
       } else {
-        console.log("recipient not online")
+        console.log("recipient not online");
       }
-
-      if (!STREAM_LIST.has(sender)) {
-        STREAM_LIST.set(sender, call);
-      }
-    })
+    });
   };
 
   const server = new grpc.Server();
