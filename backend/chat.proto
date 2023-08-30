@@ -1,17 +1,31 @@
 syntax = "proto3";
 
-message IncomingChatMessage {
+message IncomingDirectMessage {
     string recipient = 1;
     string content = 2;
     string timestamp = 3;
 }
 
-message OutgoingChatMessage {
+message OutgoingDirectMessage {
     string sender = 1;
     string content = 2;
     string timestamp = 3;
 }
 
+message IncomingGroupMessage {
+    string group = 1;
+    string content = 2;
+    string timestamp = 3;
+}
+
+message OutgoingGroupMessage {
+    string group = 1;
+    string sender = 2;
+    string content = 3;
+    string timestamp = 4;
+}
+
 service ChatService {
-    rpc chatStream(stream IncomingChatMessage) returns (stream OutgoingChatMessage) {}
+    rpc sendDirectMessage(stream IncomingDirectMessage) returns (stream OutgoingDirectMessage) {}
+    rpc sendGroupMessage(stream IncomingGroupMessage) returns (stream OutgoingGroupMessage) {}
 }

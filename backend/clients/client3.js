@@ -1,7 +1,7 @@
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 
-const PROTO_PATH = "chat.proto";
+const PROTO_PATH = "../chat.proto";
 const SERVER_URI = "localhost:9090";
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH);
@@ -20,8 +20,8 @@ const rl = readline.createInterface({
 });
 
 var metadata = new grpc.Metadata();
-metadata.add('user', 'userid1');
-var call = client.chatStream(metadata);
+metadata.add('user', '64eec06c11298840da9e1dbc');
+var call = client.sendDirectMessage(metadata);
 
 call.on("data", (data) => {
   console.log(`${data.sender} ==> ${data.content}`);
@@ -34,7 +34,7 @@ rl.on("line", function (line) {
     rl.close();
   } else {
     call.write({
-      recipient: "userid2",
+      recipient: "64eeb5c8b054c74a26153c38",
       content: line,
       timestamp: new Date().toISOString(),
     });
