@@ -20,25 +20,44 @@ const rl = readline.createInterface({
 });
 
 var metadata = new grpc.Metadata();
-metadata.add('user', '64eeb583b054c74a26153c37');
-var call = client.sendDirectMessage(metadata);
+const user = '64eeb583b054c74a26153c37'
+metadata.add('user', user);
 
-call.on("data", (data) => {
-  console.log(`${data.sender} ==> ${data.content}`);
+const receiveStream = client.receiveDirectMessage({}, metadata);
+
+receiveStream.on("data", (incomingMessage) => {
+  console.log(`Received message from ${incomingMessage.sender}: ${incomingMessage.content}`);
 });
 
+receiveStream.on('end', () => {
+  console.log('Server stream ended.');
+});
 
-rl.on("line", function (line) {
+rl.on("line", (line) => {
   if (line === "quit") {
-    call.end();
     rl.close();
-  } else {
-    call.write({
-      recipient: "64eeb5c8b054c74a26153c38",
-      content: line,
-      timestamp: new Date().toISOString(),
-    });
+    client.close();
+    receiveStream.cancel();
+    return;
   }
+
+  const message = {
+    recipient: '64eeb5c8b054c74a26153c38', // Replace with the actual recipient ID
+    content: line,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Send the message using a unary request
+  client.sendDirectMessage(message, metadata, (error, response) => {
+    if (!error) {
+      console.log('Message sent successfully');
+    } else {
+      console.error('Error sending message:', error);
+    }
+  });
 });
 
-console.log("Enter your messages below:");
+// Handle readline close event
+rl.on('close', () => {
+  console.log('Client closed.');
+});

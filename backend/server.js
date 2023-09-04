@@ -90,36 +90,46 @@ async function main() {
   };
 
   const sendDirectMessage = async (call) => {
-    const client = call.metadata.get("user")[0];
-    console.log(client + " joins!");
-    DIRECT_STREAM_LIST.set(client, call);
+    const sender = call.metadata.get("user")[0];
+    console.log(sender + " sends a message!");
+    console.log(call.request)
+    
+    const { recipient, content, timestamp } = call.request;
+    await updateChatAndUser(sender, recipient, call.request);
 
-    call.on("data", async (data) => {
-      console.log(data);
-
-      const sender = call.metadata.get("user")[0];
-      const { recipient, content, timestamp } = data;
-      await updateChatAndUser(sender, recipient, data);
-
-      if (DIRECT_STREAM_LIST.has(recipient)) {
-        outgoingMessage = {
-          sender,
-          content,
-          timestamp,
-        };
-        const recipientStream = DIRECT_STREAM_LIST.get(recipient);
-        recipientStream.write(outgoingMessage);
-      } else {
-        console.log("recipient not online");
-      }
-    });
+    if (DIRECT_STREAM_LIST.has(recipient)) {
+      outgoingMessage = {
+        sender,
+        content,
+        timestamp,
+      };
+      const recipientStream = DIRECT_STREAM_LIST.get(recipient);
+      recipientStream.write(outgoingMessage);
+    } else {
+      console.log("recipient not online");
+    }
   };
+
+  const receiveDirectMessage = async(call) => {
+    const user = call.metadata.get('user')[0]; 
+    DIRECT_STREAM_LIST.set(user, call);
+    console.log(user + " joins")
+
+    call.on('data', (incomingMessage) => {
+      console.log(`Received message from ${incomingMessage.sender}: ${incomingMessage.content}`);
+    });
+
+    call.on('cancelled', () => {
+      console.log(`Client ${user} has disconnected.`);
+      DIRECT_STREAM_LIST.delete(user); // Remove the stream when the client disconnects
+    });
+  }
 
   const server = new grpc.Server();
 
   server.addService(protoDescriptor.ChatService.service, {
     sendDirectMessage,
-    // sendGroupMessage,
+    receiveDirectMessage,
   });
 
   server.bindAsync(

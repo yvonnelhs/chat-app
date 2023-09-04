@@ -12,6 +12,8 @@ message OutgoingDirectMessage {
     string timestamp = 3;
 }
 
+message Empty {}
+
 message IncomingGroupMessage {
     string group = 1;
     string content = 2;
@@ -26,6 +28,7 @@ message OutgoingGroupMessage {
 }
 
 service ChatService {
-    rpc sendDirectMessage(stream IncomingDirectMessage) returns (stream OutgoingDirectMessage) {}
+    rpc sendDirectMessage(IncomingDirectMessage) returns (Empty) {}
+    rpc receiveDirectMessage(Empty) returns (stream OutgoingDirectMessage) {}
     rpc sendGroupMessage(stream IncomingGroupMessage) returns (stream OutgoingGroupMessage) {}
 }
