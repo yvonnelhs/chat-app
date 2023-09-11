@@ -1,13 +1,12 @@
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 
-const PROTO_PATH = "../chat.proto";
+const PROTO_PATH = "../src/protos/chat.proto";
 const SERVER_URI = "localhost:9090";
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH);
 const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
 
-// Create a gRPC client
 const client = new protoDescriptor.ChatService(
   SERVER_URI,
   grpc.credentials.createInsecure()
@@ -42,12 +41,11 @@ rl.on("line", (line) => {
   }
 
   const message = {
-    recipient: '64eeb5c8b054c74a26153c38', // Replace with the actual recipient ID
+    recipient: '64eec06c11298840da9e1dbc',
     content: line,
     timestamp: new Date().toISOString(),
   };
 
-  // Send the message using a unary request
   client.sendDirectMessage(message, metadata, (error, response) => {
     if (!error) {
       console.log('Message sent successfully');
@@ -57,7 +55,6 @@ rl.on("line", (line) => {
   });
 });
 
-// Handle readline close event
 rl.on('close', () => {
   console.log('Client closed.');
 });

@@ -1,13 +1,12 @@
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 
-const PROTO_PATH = "../chat.proto";
+const PROTO_PATH = "../src/protos/chat.proto";
 const SERVER_URI = "localhost:9090";
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH);
 const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
 
-// Create a gRPC client
 const client = new protoDescriptor.ChatService(
   SERVER_URI,
   grpc.credentials.createInsecure()
@@ -20,25 +19,44 @@ const rl = readline.createInterface({
 });
 
 var metadata = new grpc.Metadata();
-metadata.add('user', '64eec06c11298840da9e1dbc');
-var call = client.sendDirectMessage(metadata);
+const user = "64eec06c11298840da9e1dbc";
+metadata.add("user", user);
 
-call.on("data", (data) => {
-  console.log(`${data.sender} ==> ${data.content}`);
+const receiveStream = client.receiveDirectMessage({}, metadata);
+
+receiveStream.on("data", (incomingMessage) => {
+  console.log(
+    `Received message from ${incomingMessage.sender}: ${incomingMessage.content}`
+  );
 });
 
+receiveStream.on("end", () => {
+  console.log("Server stream ended.");
+});
 
-rl.on("line", function (line) {
+rl.on("line", (line) => {
   if (line === "quit") {
-    call.end();
     rl.close();
-  } else {
-    call.write({
-      recipient: "64eeb5c8b054c74a26153c38",
-      content: line,
-      timestamp: new Date().toISOString(),
-    });
+    client.close();
+    receiveStream.cancel();
+    return;
   }
+
+  const message = {
+    recipient: "64eeb5c8b054c74a26153c38",
+    content: line,
+    timestamp: new Date().toISOString(),
+  };
+
+  client.sendDirectMessage(message, metadata, (error, response) => {
+    if (!error) {
+      console.log("Message sent successfully");
+    } else {
+      console.error("Error sending message:", error);
+    }
+  });
 });
 
-console.log("Enter your messages below:");
+rl.on("close", () => {
+  console.log("Client closed.");
+});

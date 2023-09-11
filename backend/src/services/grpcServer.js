@@ -1,23 +1,18 @@
-const dotenv = require("dotenv");
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 const crypto = require("crypto");
-const { MongoClient, ObjectId } = require("mongodb");
-
-dotenv.config();
+const mongoUtil = require("../utils/mongoUtil");
 
 async function main() {
-  const PROTO_PATH = "chat.proto";
+  const PROTO_PATH = "src/protos/chat.proto";
   const SERVER_URI = "0.0.0.0:9090";
 
   const packageDefinition = protoLoader.loadSync(PROTO_PATH);
   const protoDescriptor = grpc.loadPackageDefinition(packageDefinition);
 
-  const client = new MongoClient(process.env.DB_URI);
-  await client.connect();
-  const db = client.db("chatAppDB");
+  const db = mongoUtil.getDb();
   const CHATS_COLLECTION = db.collection("chats");
-  const USERS_COLLECTION = db.collection("users");
+  const CHAT_LIST_COLLECTION = db.collection("chatList");
 
   const DIRECT_STREAM_LIST = new Map();
 
@@ -26,42 +21,30 @@ async function main() {
     return crypto.createHash("sha256").update(sortedParticipants).digest("hex");
   };
 
-  const updateChatAndUser = async (sender, recipient, data) => {
-    console.log("=== IN CREATE FUNCTION ===");
-    console.log(`userids: ${sender}, ${recipient}`);
-
-    const chatId = generateChatId([sender, recipient]);
+  const updateChatAndUser = async (sender, recipient, data, chatId) => {
     const { content, timestamp } = data;
-    const newMessage = {
-      sender,
-      content,
-      timestamp,
-    };
+    const newMessage = { sender, content, timestamp };
 
     if (await CHATS_COLLECTION.findOne({ _id: chatId })) {
-      console.log("chat exists already");
-
       const filterChat = { _id: chatId };
       const updateChat = { $push: { messages: newMessage } };
 
-      const filterUser = {
-        _id: { $in: [new ObjectId(sender), new ObjectId(recipient)] },
-        "chats.chat_id": chatId,
+      const filterChatList = {
+        _id: { $in: [sender, recipient] },
+        "chat_list.chat_id": chatId,
       };
-      const updateUser = {
+      const updateChatList = {
         $set: {
-          "chats.$.timestamp": timestamp,
-          "chats.$.last_message": content,
+          "chat_list.$.timestamp": timestamp,
+          "chat_list.$.last_message": content,
         },
       };
 
       await Promise.all([
         CHATS_COLLECTION.updateOne(filterChat, updateChat),
-        USERS_COLLECTION.updateMany(filterUser, updateUser),
+        CHAT_LIST_COLLECTION.updateMany(filterChatList, updateChatList),
       ]);
     } else {
-      console.log("Creating a new chat ...");
-
       await CHATS_COLLECTION.insertOne({
         _id: chatId,
         type: "direct",
@@ -71,13 +54,11 @@ async function main() {
         messages: [newMessage],
       });
 
-      const filter = {
-        _id: { $in: [new ObjectId(sender), new ObjectId(recipient)] },
-      };
+      const filter = { _id: { $in: [sender, recipient] } };
 
       const update = {
         $addToSet: {
-          chats: {
+          chat_list: {
             chat_id: chatId,
             last_message: content,
             timestamp,
@@ -85,45 +66,54 @@ async function main() {
         },
       };
 
-      await USERS_COLLECTION.updateMany(filter, update);
+      await CHAT_LIST_COLLECTION.updateMany(filter, update);
     }
   };
 
-  const sendDirectMessage = async (call) => {
+  const sendDirectMessage = async (call, callback) => {
     const sender = call.metadata.get("user")[0];
     console.log(sender + " sends a message!");
-    console.log(call.request)
-    
+    console.log(call.request);
+
     const { recipient, content, timestamp } = call.request;
-    await updateChatAndUser(sender, recipient, call.request);
+    const chatId = generateChatId([sender, recipient]);
+    await updateChatAndUser(sender, recipient, call.request, chatId);
 
     if (DIRECT_STREAM_LIST.has(recipient)) {
       outgoingMessage = {
         sender,
         content,
         timestamp,
+        chatId,
       };
       const recipientStream = DIRECT_STREAM_LIST.get(recipient);
       recipientStream.write(outgoingMessage);
+
+      callback(null, {
+        error: 0,
+        msg: "Success",
+      });
     } else {
       console.log("recipient not online");
     }
   };
 
-  const receiveDirectMessage = async(call) => {
-    const user = call.metadata.get('user')[0]; 
+  const receiveDirectMessage = async (call) => {
+    const user = call.metadata.get("user")[0];
     DIRECT_STREAM_LIST.set(user, call);
-    console.log(user + " joins")
+    console.log(user + " joins");
 
-    call.on('data', (incomingMessage) => {
-      console.log(`Received message from ${incomingMessage.sender}: ${incomingMessage.content}`);
+    call.on("data", (incomingMessage) => {
+      console.log(
+        `Received message from ${incomingMessage.sender}: ${incomingMessage.content}`
+      );
     });
 
-    call.on('cancelled', () => {
+    call.on("cancelled", () => {
       console.log(`Client ${user} has disconnected.`);
       DIRECT_STREAM_LIST.delete(user); // Remove the stream when the client disconnects
     });
-  }
+  };
 
   const server = new grpc.Server();
 
@@ -140,7 +130,6 @@ async function main() {
         console.log(err);
       } else {
         server.start();
-        console.log("Server is running!");
       }
     }
   );

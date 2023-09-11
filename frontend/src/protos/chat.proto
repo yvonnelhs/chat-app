@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+message IncomingDirectMessage {
+    string recipient = 1;
+    string content = 2;
+    string timestamp = 3;
+}
+
+message OutgoingDirectMessage {
+    string sender = 1;
+    string content = 2;
+    string timestamp = 3;
+    string chatId = 4;
+}
+
+message Empty {}
+
+service ChatService {
+    rpc sendDirectMessage(IncomingDirectMessage) returns (Empty) {}
+    rpc receiveDirectMessage(Empty) returns (stream OutgoingDirectMessage) {}
+}
