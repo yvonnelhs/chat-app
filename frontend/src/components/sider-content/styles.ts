@@ -8,8 +8,19 @@ export const styles: { [key: string]: React.CSSProperties } = {
   },
   space: {
     width: "100%",
+    marginTop: "25px",
   },
   divider: {
     margin: "0px",
+  },
+  modalDiv: {
+    display: "flex",
+  },
+  modalHeader: {
+    lineHeight: "0px",
+    marginRight: "5px",
+  },
+  recipientInput: {
+    width: "90%",
   },
 };

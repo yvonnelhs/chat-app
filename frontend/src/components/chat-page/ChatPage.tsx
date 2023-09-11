@@ -132,7 +132,7 @@ const ChatPage = () => {
     } else {
       setIsModalOpen(true);
     }
-  },[])
+  }, []);
 
   return (
     <>
@@ -151,6 +151,9 @@ const ChatPage = () => {
             setSelectedChatId={setSelectedChatId}
             setRecipientId={setRecipientId}
             fetchChatList={fetchChatList}
+            message={message}
+            setMessage={setMessage}
+            onClick={sendMessage}
           />
         </Sider>
         {selectedChatId && recipientId ? (
