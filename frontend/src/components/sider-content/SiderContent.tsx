@@ -3,6 +3,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import { ChatDisplayInfo } from "../../interfaces";
 import ChatCard from "../chat-card/ChatCard";
 import { useState } from "react";
+import { styles } from "./styles";
 
 const { Search } = Input;
 
@@ -35,11 +36,11 @@ const SiderContent: React.FC<SiderContentProps> = ({
 
   return (
     <>
-      <div style={{ display: "flex", marginBottom: "20px" }}>
+      <div style={styles.container}>
         <Search
           placeholder="search..."
           onSearch={() => {}}
-          style={{ marginRight: "5px" }}
+          style={styles.search}
         />
         <Button size="middle" onClick={showModal}>
           <PlusOutlined />
@@ -51,7 +52,7 @@ const SiderContent: React.FC<SiderContentProps> = ({
           footer={[]}
         >
           <p>Key in user id to start chatting</p>
-          <Space.Compact style={{ width: "100%" }}>
+          <Space.Compact style={styles.space}>
             <Input />
             <Button type="primary" onClick={handleCancel}>
               Create
@@ -59,7 +60,7 @@ const SiderContent: React.FC<SiderContentProps> = ({
           </Space.Compact>
         </Modal>
       </div>
-      <Divider style={{ margin: "0px" }} />
+      <Divider style={styles.divider} />
       {chatList.map((chatInfo) => (
         <ChatCard
           key={chatInfo.chatId}
